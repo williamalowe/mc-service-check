@@ -1,3 +1,8 @@
+const express = require('express');
+const app = express();
+const port = process.env.PORT || 3000;
+
+// Your postcode lists
 const mobile_service_postcode = [
     '4000', '4001', '4002', '4005', '4006', '4007', '4008', '4009', '4010', '4011',
     '4012', '4013', '4014', '4017', '4018', '4029', '4030', '4031', '4032', '4034',
@@ -65,15 +70,19 @@ const mobile_service_postcode = [
     '5075', '5076', '5081', '5082', '5083', '5084', '5085', '5086', '5087', '5088',
     '5090', '5092', '5093', '5094', '5095', '5096', '5098', '5106', '5107', '5950',
     '5047', '5049', '5050', '5051', '5158', '5159', '5160', '5161', '5162', '5163',
-    '5164', '5165', '5166', '5167', '5168', '5169'
-];
-
-const mobile_service_sa_region = [
+    '5164', '5165', '5166', '5167', '5168', '5169', 
     '2628', '1928', '2695', '1942', '1948', '2675', '1944', '3019', '1012',
     '3034', '1003', '1005', '1151', '2611', '1925', '1121', '1170', '1048',
     '1956', '3038', '1116', '1059', '2653', '1943', '2613', '1153', '3007',
     '1021', '2681', '2618', '3037', '3044'
 ];
+
+// const mobile_service_sa_region = [
+//     '2628', '1928', '2695', '1942', '1948', '2675', '1944', '3019', '1012',
+//     '3034', '1003', '1005', '1151', '2611', '1925', '1121', '1170', '1048',
+//     '1956', '3038', '1116', '1059', '2653', '1943', '2613', '1153', '3007',
+//     '1021', '2681', '2618', '3037', '3044'
+// ];
 
 const within_mobile_fitting_region = [
     '1013', '1017', '1027', '1031', '1032', '1047', '1060', '1062', '1063', '1067',
@@ -94,9 +103,124 @@ const within_mobile_fitting_region = [
     '2630', '2631', '2608', '3015', '1171'
 ];
 
-// Convert to Sets for faster lookup
+// Convert arrays to Sets for faster lookup
 const postcodeListsMap = {
     'mobile_service': new Set(mobile_service_postcode),
-    'sa_region': new Set(mobile_service_sa_region),
+    // 'sa_region': new Set(mobile_service_sa_region),
     'fitting_region': new Set(within_mobile_fitting_region)
 };
+
+// Middleware
+app.use(express.json());
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Main endpoint to check postcode in a specific list
+app.get('/check-postcode', (req, res) => {
+    const { postcode, list } = req.query;
+    
+    // Validate required parameters
+    if (!postcode) {
+        return res.status(400).json({
+            success: false,
+            error: 'Missing required parameter: postcode'
+        });
+    }
+    
+    if (!list) {
+        return res.status(400).json({
+            success: false,
+            error: 'Missing required parameter: list',
+            availableLists: Object.keys(postcodeListsMap)
+        });
+    }
+    
+    // Validate list parameter
+    if (!postcodeListsMap[list]) {
+        return res.status(400).json({
+            success: false,
+            error: `Invalid list parameter. Available lists: ${Object.keys(postcodeListsMap).join(', ')}`
+        });
+    }
+    
+    // Check if postcode exists in the specified list
+    const exists = postcodeListsMap[list].has(postcode.toString());
+    
+    res.json({
+        success: true,
+        postcode: postcode,
+        list: list,
+        exists: exists
+    });
+});
+
+// Endpoint to check postcode in all lists
+app.get('/check-postcode-all', (req, res) => {
+    const { postcode } = req.query;
+    
+    if (!postcode) {
+        return res.status(400).json({
+            success: false,
+            error: 'Missing required parameter: postcode'
+        });
+    }
+    
+    const results = {};
+    for (const [listName, postcodeSet] of Object.entries(postcodeListsMap)) {
+        results[listName] = postcodeSet.has(postcode.toString());
+    }
+    
+    res.json({
+        success: true,
+        postcode: postcode,
+        results: results
+    });
+});
+
+// Get list information
+app.get('/lists', (req, res) => {
+    const listInfo = {};
+    for (const [listName, postcodeSet] of Object.entries(postcodeListsMap)) {
+        listInfo[listName] = {
+            name: listName,
+            count: postcodeSet.size
+        };
+    }
+    
+    res.json({
+        success: true,
+        lists: listInfo
+    });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({
+        success: false,
+        error: 'Something went wrong!'
+    });
+});
+
+// 404 handler
+app.use((req, res) => {
+    res.status(404).json({
+        success: false,
+        error: 'Endpoint not found'
+    });
+});
+
+// Start server
+app.listen(port, () => {
+    console.log(`Postcode checker API running on port ${port}`);
+    console.log(`Available endpoints:`);
+    console.log(`- GET /health - Health check`);
+    console.log(`- GET /check-postcode?postcode=XXXX&list=LIST_NAME - Check postcode in specific list`);
+    console.log(`- GET /check-postcode-all?postcode=XXXX - Check postcode in all lists`);
+    console.log(`- GET /lists - Get information about available lists`);
+});
+
+module.exports = app;
