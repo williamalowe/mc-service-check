@@ -1,0 +1,27 @@
+{
+  "name": "mc-service-check",
+  "version": "1.0.0",
+  "description": "API to check postcodes in various service regions",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "devDependencies": {
+    "vercel": "^28.4.0"
+  },
+  "directories": {
+    "lib": "lib"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/walowetsa/mc-service-check.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/walowetsa/mc-service-check/issues"
+  },
+  "homepage": "https://github.com/walowetsa/mc-service-check#readme"
+}
